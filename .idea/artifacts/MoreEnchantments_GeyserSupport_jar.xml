@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="MoreEnchantments-GeyserSupport:jar">
+    <output-path>$USER_HOME$/PluginTesting/plugins</output-path>
+    <root id="archive" name="MoreEnchantments-GeyserSupport.jar">
+      <element id="module-output" name="MoreEnchantments-GeyserSupport" />
+    </root>
+  </artifact>
+</component>
