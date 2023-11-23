@@ -1,24 +1,13 @@
 package org.MEGeyserSupport;
 
-import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.inventory.AnvilMenu;
-import net.minecraft.world.inventory.ContainerLevelAccess;
 import org.bukkit.Bukkit;
-import org.bukkit.Material;
-import org.bukkit.craftbukkit.v1_20_R2.entity.CraftPlayer;
 import org.bukkit.entity.Player;
+import org.bukkit.event.Event;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.*;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
-import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.inventory.AnvilInventory;
-import org.bukkit.inventory.InventoryView;
-import org.bukkit.inventory.ItemStack;
-
-import java.util.List;
 
 public class Events implements Listener {
 
@@ -30,25 +19,56 @@ public class Events implements Listener {
 
     @EventHandler
     void InventoryClickEvent(InventoryClickEvent e){
-        if (WrappedBedrockAnvilUI.noClose.contains(e.getInventory())) return;
-        if (!e.getSlotType().equals(InventoryType.SlotType.CONTAINER)) return;
+        if (MinecraftAnvilAPI.isAnvilOpening(e.getInventory())) return;
         WrappedBedrockAnvilUI wrappedBedrockAnvilUI = WrappedBedrockAnvilUI.getWrappedBedrockAnvilUI(e.getInventory());
         if (wrappedBedrockAnvilUI == null) return;
-        if (e.getSlot() == 4){
+        if (e.getSlot() == 4 && e.getSlotType().equals(InventoryType.SlotType.CONTAINER)){
+//            e.getWhoClicked().setItemOnCursor(new ItemStack(Material.AIR));
+//            e.setCurrentItem(new ItemStack(Material.AIR));
+            e.setResult(Event.Result.DENY);
+//            e.setCancelled(true);
+//            System.out.println("cancelled");
             Bukkit.getScheduler().runTaskLater(MEGeyserSupport.getThis(), () -> {
-                wrappedBedrockAnvilUI.onResultTake();
+                wrappedBedrockAnvilUI.onResultTake(e.getClick(), e.getAction());
             }, 1);
+//            MinecraftAnvilAPI anvil = new MinecraftAnvilAPI((Player) e.getWhoClicked());
+//            Bukkit.getScheduler().runTaskLater(MEGeyserSupport.getThis(), anvil::open, 10);
+            return;
         }
         wrappedBedrockAnvilUI.onUpdate();
     }
 
     @EventHandler
     void InventoryOpenEvent(InventoryOpenEvent e){
-        if (!(e.getInventory() instanceof AnvilInventory)) return;
-        if (WrappedBedrockAnvilUI.noClose.contains(e.getInventory())) return;
+        System.out.println("playersWithAnvilOpen");
+        System.out.println(e.getInventory().getType());
+        if (!(e.getInventory().getType().equals(InventoryType.ANVIL))) return;
+//        if (WrappedBedrockAnvilUI.noClose.contains(e.getInventory())) return;
+        if (MinecraftAnvilAPI.playersWithAnvilOpen.contains(e.getPlayer())) return;
+        for (Player i : MinecraftAnvilAPI.playersWithAnvilOpen){
+            System.out.println("playersWithAnvilOpen");
+            System.out.println(i.getName());
+        }
         Bukkit.getScheduler().runTaskLater(MEGeyserSupport.getThis(), () -> {
             WrappedBedrockAnvilUI wrappedBedrockAnvilUI = new WrappedBedrockAnvilUI((Player)(e.getPlayer()));
         }, 1);
+    }
+
+
+    @EventHandler
+    void InventoryCloseEvent(InventoryCloseEvent e){
+        System.out.println("playersWithAnvilClose");
+        System.out.println(e.getInventory().getType());
+        if (!(e.getInventory().getType().equals(InventoryType.ANVIL))) return;
+        if (!MinecraftAnvilAPI.playersWithAnvilOpen.contains(e.getPlayer())) return;
+        for (MinecraftAnvilAPI i : MinecraftAnvilAPI.opening) {
+            System.out.println("playersWithAnvilClose");
+            System.out.println(i.getPlayer().getName());
+            if (!i.getPlayer().equals(e.getPlayer())) {
+                continue;
+            }
+            i.onUIClosed();
+        }
     }
 
     @EventHandler

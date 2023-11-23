@@ -4,12 +4,14 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.inventory.AnvilMenu;
 import net.minecraft.world.inventory.ContainerLevelAccess;
+import org.MEGeyserSupport.utils.ItemStackUtil;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.craftbukkit.v1_20_R2.entity.CraftPlayer;
 import org.bukkit.entity.Player;
+import org.bukkit.event.inventory.ClickType;
+import org.bukkit.event.inventory.InventoryAction;
 import org.bukkit.event.inventory.InventoryType;
-import org.bukkit.event.inventory.PrepareAnvilEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryView;
 import org.bukkit.inventory.ItemStack;
@@ -24,8 +26,11 @@ import java.util.function.Consumer;
 
 public class WrappedBedrockAnvilUI{
     public Inventory inventory;
-    private static HashMap<Inventory, WrappedBedrockAnvilUI> wrappedBedrockAnvilUIs = new HashMap<>();
     public static List<Inventory> noClose = new ArrayList<>();
+    private static HashMap<Inventory, WrappedBedrockAnvilUI> wrappedBedrockAnvilUIs = new HashMap<>();
+    private ItemStack itemA = new ItemStack(Material.AIR);
+    private ItemStack itemB = new ItemStack(Material.AIR);
+    private ItemStack result = new ItemStack(Material.AIR);
     Player player;
     public class RenameUI {
         public static HashMap<UUID, RenameUI> players = new HashMap<>();
@@ -53,10 +58,12 @@ public class WrappedBedrockAnvilUI{
     }
 
     private static boolean isBannerItem(ItemStack item){
-        return ((Byte)(ItemUtils.itemGetNbtPath(item, "isBannerItem")))==0;
+        Byte isBannerItem = ((Byte)(ItemUtils.itemGetNbtPath(item, "isBannerItem")));
+        if (isBannerItem == null) return false;
+        return (isBannerItem==0);
     }
 
-    private ItemStack bannerItem(){
+    private ItemStack newBannerItem(){
         ItemStack result = new ItemStack(Material.GRAY_STAINED_GLASS_PANE, 1);
         ItemMeta rItemMeta = result.getItemMeta();
         rItemMeta.setDisplayName(" ");
@@ -66,10 +73,12 @@ public class WrappedBedrockAnvilUI{
     }
 
     private static boolean isRenameItem(ItemStack item){
-        return ((Byte)(ItemUtils.itemGetNbtPath(item, "isRenameItem")))==0;
+        Byte isRenameItem = ((Byte)(ItemUtils.itemGetNbtPath(item, "isRenameItem")));
+        if (isRenameItem == null) return false;
+        return (isRenameItem==0);
     }
 
-    private ItemStack renameItem(){
+    private ItemStack newRenameItem(){
         ItemStack result = new ItemStack(Material.NAME_TAG, 1);
         ItemMeta rItemMeta = result.getItemMeta();
         rItemMeta.setDisplayName(" ");
@@ -79,11 +88,47 @@ public class WrappedBedrockAnvilUI{
         return result;
     }
 
+    private void clearItem(int slot){
+        if (inventory.getItem(slot) == null) {
+            inventory.setItem(slot, new ItemStack(Material.AIR));
+            return;
+        }
+
+        if (inventory.getItem(slot).getType().equals(Material.AIR)) {
+            return;
+        }
+
+        player.getInventory().addItem(inventory.getItem(slot));
+        inventory.setItem(slot, new ItemStack(Material.AIR));
+    }
+
+    private void setResult(ItemStack item){
+        if (item == null) {
+            inventory.setItem(4, new ItemStack(Material.AIR));
+            return;
+        }
+
+        item = item.clone();
+
+        if (item.getType().equals(Material.AIR)) {
+            return;
+        }
+
+        inventory.setItem(4, item);
+        result = item;
+    }
+
+    private void frameworkUpdate(){
+        clearItem(0);
+        clearItem(3);
+        inventory.setItem(0, newRenameItem());
+        inventory.setItem(3, newBannerItem());
+    }
+
     public WrappedBedrockAnvilUI(Player player){
         this.inventory = Bukkit.createInventory(player, InventoryType.HOPPER, "Anvil");
         this.player = player;
-        inventory.setItem(0, renameItem());
-        inventory.setItem(3, bannerItem());
+        frameworkUpdate();
         player.closeInventory();
         player.openInventory(inventory);
         wrappedBedrockAnvilUIs.put(inventory, this);
@@ -111,7 +156,7 @@ public class WrappedBedrockAnvilUI{
             if (renameText.contains("§")) return;
             if (renameText.contains("\n")) return;
 
-            ItemStack renameItem = renameItem();
+            ItemStack renameItem = newRenameItem();
             ItemMeta renameItemMeta = renameItem.getItemMeta();
             renameItemMeta.setDisplayName(renameText);
             renameItem.setItemMeta(renameItemMeta);
@@ -121,73 +166,82 @@ public class WrappedBedrockAnvilUI{
     }
 
     private void updateResult(){
-        ServerPlayer splayer = ((CraftPlayer) player).getHandle();
-        int nCC = splayer.nextContainerCounter();
-        net.minecraft.world.entity.player.Inventory inv = splayer.getInventory();
-        ContainerLevelAccess containerAccess = ContainerLevelAccess.create(splayer.level(), splayer.blockPosition());
-        AnvilMenu menu = new AnvilMenu(nCC, inv, containerAccess);
-        menu.checkReachable = false;
-        menu.setTitle(Component.literal("Anvil"));
-        InventoryView view = menu.getBukkitView();
-        System.out.println(inventory.getItem(0));
-        System.out.println(inventory.getItem(1));
-        System.out.println(inventory.getItem(2));
-        System.out.println(inventory.getItem(3));
-        System.out.println(inventory.getItem(4));
-        noClose.add(view.getTopInventory());
+        MinecraftAnvilAPI vanillaAnvil = new MinecraftAnvilAPI(player);
 
         Bukkit.getScheduler().runTaskLater(MEGeyserSupport.getThis(), () -> {
-            ItemStack a = inventory.getItem(1);
-            if (a != null){
-                a = inventory.getItem(1).clone();
-            }
-            ItemStack b = inventory.getItem(2);
-            if (b != null){
-                b = inventory.getItem(2).clone();
-            }
-            view.setItem(0, a);
-            view.setItem(1, b);
-            player.closeInventory();
+            vanillaAnvil.setItemA(itemA);
+            vanillaAnvil.setItemB(itemB);
         }, 1);
 
 
-        Bukkit.getScheduler().runTaskLater(MEGeyserSupport.getThis(), () -> {
-            player.openInventory(view);
-        }, 2);
+        Bukkit.getScheduler().runTaskLater(MEGeyserSupport.getThis(), vanillaAnvil::open, 2);
 
         Bukkit.getScheduler().runTaskLater(MEGeyserSupport.getThis(), () -> {
-            ItemStack result = view.getItem(2);
-            if (result != null){
-                result = result.clone();
-            }
-            inventory.setItem(4,result);
-            view.setItem(0, new ItemStack(Material.AIR));
-            view.setItem(1, new ItemStack(Material.AIR));
-            view.setItem(2, new ItemStack(Material.AIR));
+            setResult(vanillaAnvil.getResultPreview());
+            vanillaAnvil.clear();
             player.openInventory(inventory);
+            noClose.remove(vanillaAnvil.getInventory());
         }, 3);
     }
 
     public void onUpdate(){
-        updateResult();
-        if (isRenaming()) rename();
+//        if (isRenaming()) rename();
+        Bukkit.getScheduler().runTaskLater(MEGeyserSupport.getThis(), () -> {
+            ItemStack currentItemA = inventory.getItem(1);
+            ItemStack currentItemB = inventory.getItem(2);
+            if (currentItemA == null) currentItemA = new ItemStack(Material.AIR);
+            if (currentItemB == null) currentItemB = new ItemStack(Material.AIR);
 
+            boolean itemUpdated = !ItemStackUtil.equals(itemA, currentItemA) || !ItemStackUtil.equals(itemB, currentItemB);
+            itemA = currentItemA.clone();
+            itemB = currentItemB.clone();
+            if (itemUpdated) updateResult();
+        }, 1);
     }
 
-    public void onResultTake(){
-        ItemStack result = inventory.getItem(4);
-        if (result != null){
-            result = result.clone();
-        }
-        inventory.setItem(0, renameItem());
-        inventory.setItem(1, new ItemStack(Material.AIR));
-        inventory.setItem(2, new ItemStack(Material.AIR));
-        inventory.setItem(3, bannerItem());
-        inventory.setItem(4, new ItemStack(Material.AIR));
-        ItemStack finalResult = result;
-        Bukkit.getScheduler().runTaskLater(MEGeyserSupport.getThis(), () -> {
-            player.setItemOnCursor(finalResult);
+    public void onResultTake(ClickType clickType, InventoryAction action){
+        if (
+                !(
+                    action.equals(InventoryAction.PICKUP_ALL)
+                    || action.equals(InventoryAction.PICKUP_HALF)
+                    || action.equals(InventoryAction.PICKUP_ONE)
+                    || action.equals(InventoryAction.PICKUP_SOME)
+                    || action.equals(InventoryAction.COLLECT_TO_CURSOR)
+                    || action.equals(InventoryAction.MOVE_TO_OTHER_INVENTORY)
+                    || action.equals(InventoryAction.SWAP_WITH_CURSOR)
+                    || action.equals(InventoryAction.HOTBAR_SWAP)
+                )
+        ) return;
+
+        ItemStack currentResult = inventory.getItem(4);
+        if (currentResult == null) currentResult = new ItemStack(Material.AIR);
+
+        MinecraftAnvilAPI vanillaAnvil = new MinecraftAnvilAPI(player);
+        vanillaAnvil.setItemA(itemA);
+        vanillaAnvil.setItemB(itemB);
+
+        player.closeInventory();
+        Bukkit.getScheduler().runTaskLater(MEGeyserSupport.getThis(), ()->{
+            vanillaAnvil.open();
+        }, 1);
+        Bukkit.getScheduler().runTaskLater(MEGeyserSupport.getThis(), ()->{
+            inventory.clear();
+            vanillaAnvil.onResultClick(clickType, action);
         }, 2);
+        Bukkit.getScheduler().runTaskLater(MEGeyserSupport.getThis(), ()->{
+            frameworkUpdate();
+            player.openInventory(inventory);
+        }, 3);
+
+//        inventory.setItem(0, renameItem());
+//        inventory.setItem(1, new ItemStack(Material.AIR));
+//        inventory.setItem(2, new ItemStack(Material.AIR));
+//        inventory.setItem(3, bannerItem());
+//        inventory.setItem(4, new ItemStack(Material.AIR));
+//        ItemStack finalResult = result;
+//        Bukkit.getScheduler().runTaskLater(MEGeyserSupport.getThis(), () -> {
+//            player.setItemOnCursor(finalResult);
+//        }, 2);
     }
 
 
