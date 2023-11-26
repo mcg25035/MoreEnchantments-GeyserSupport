@@ -18,6 +18,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.itemutils.ItemUtils;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -27,11 +28,14 @@ import java.util.function.Consumer;
 public class WrappedBedrockAnvilUI{
     public Inventory inventory;
     public static List<Inventory> noClose = new ArrayList<>();
-    private static HashMap<Inventory, WrappedBedrockAnvilUI> wrappedBedrockAnvilUIs = new HashMap<>();
+    private static HashMap<Player, WrappedBedrockAnvilUI> wrappedBedrockAnvilUIs = new HashMap<>();
+    private String renameText = "";
     private ItemStack itemA = new ItemStack(Material.AIR);
     private ItemStack itemB = new ItemStack(Material.AIR);
-    private ItemStack result = new ItemStack(Material.AIR);
-    Player player;
+    private ItemStack result = newEmptyItem();
+    public boolean inventoryLock = false;
+    public Instant lastUpdate = null;
+    public Player player;
     public class RenameUI {
         public static HashMap<UUID, RenameUI> players = new HashMap<>();
         public UUID playerUUID;
@@ -44,17 +48,13 @@ public class WrappedBedrockAnvilUI{
         }
 
         public void onRename(String renameText){
+            this.renameText = renameText;
             callback.accept(this.renameText);
             players.remove(playerUUID);
         }
     }
-
-    public static boolean isWrappedBedrockAnvilUI(Inventory inventory){
-        return wrappedBedrockAnvilUIs.containsKey(inventory);
-    }
-
-    public static WrappedBedrockAnvilUI getWrappedBedrockAnvilUI(Inventory inventory){
-        return wrappedBedrockAnvilUIs.get(inventory);
+    public static WrappedBedrockAnvilUI getWrappedBedrockAnvilUI(Player player){
+        return wrappedBedrockAnvilUIs.get(player);
     }
 
     private static boolean isBannerItem(ItemStack item){
@@ -63,129 +63,114 @@ public class WrappedBedrockAnvilUI{
         return (isBannerItem==0);
     }
 
-    private ItemStack newBannerItem(){
+    private ItemStack newBannerItem(int lvl, boolean isTooExpensive){
         ItemStack result = new ItemStack(Material.GRAY_STAINED_GLASS_PANE, 1);
         ItemMeta rItemMeta = result.getItemMeta();
-        rItemMeta.setDisplayName(" ");
+        boolean isLevelEnough = player.getLevel() >= lvl;
+        if (isTooExpensive) isLevelEnough = false;
+        String colorPrefix = isLevelEnough ? "§a" : "§c";
+        rItemMeta.setDisplayName("§e"+(String)(MEGeyserSupport.getThis().languageMapping.get("LevelCost")+"§f: "+colorPrefix+lvl));
+        if (isTooExpensive) rItemMeta.setDisplayName("§c"+(String)(MEGeyserSupport.getThis().languageMapping.get("TooExpensive")));
+        if (lvl == -1) rItemMeta.setDisplayName(" ");
         result.setItemMeta(rItemMeta);
         result = ItemUtils.itemSetNbtPath(result, "isBannerItem", true);
         return result;
     }
 
-    private static boolean isRenameItem(ItemStack item){
-        Byte isRenameItem = ((Byte)(ItemUtils.itemGetNbtPath(item, "isRenameItem")));
-        if (isRenameItem == null) return false;
-        return (isRenameItem==0);
-    }
-
-    private ItemStack newRenameItem(){
+    private ItemStack newRenameItem(String itemName){
         ItemStack result = new ItemStack(Material.NAME_TAG, 1);
         ItemMeta rItemMeta = result.getItemMeta();
-        rItemMeta.setDisplayName(" ");
-        rItemMeta.setLore(List.of("Click to rename item"));
+        rItemMeta.setDisplayName("§e[§f"+(String)(MEGeyserSupport.getThis().languageMapping.get("ClickToRename")+"§e]"));
+        rItemMeta.setLore(List.of("§f"+itemName));
         result.setItemMeta(rItemMeta);
         result = ItemUtils.itemSetNbtPath(result, "isRenameItem", true);
         return result;
     }
 
-    private void clearItem(int slot){
-        if (inventory.getItem(slot) == null) {
-            inventory.setItem(slot, new ItemStack(Material.AIR));
-            return;
-        }
+    private ItemStack newEmptyItem(){
+        ItemStack result = new ItemStack(Material.BARRIER, 1);
+        ItemMeta itemMeta = result.getItemMeta();
+        itemMeta.setDisplayName(" ");
+        result.setItemMeta(itemMeta);
+        return result;
+    }
 
-        if (inventory.getItem(slot).getType().equals(Material.AIR)) {
-            return;
-        }
-
-        player.getInventory().addItem(inventory.getItem(slot));
-        inventory.setItem(slot, new ItemStack(Material.AIR));
+    private void setupRenameItem(String itemName){
+        ItemStack renameItem = newRenameItem(itemName);
+        inventory.setItem(0, renameItem);
     }
 
     private void setResult(ItemStack item){
         if (item == null) {
-            inventory.setItem(4, new ItemStack(Material.AIR));
-            return;
+            item = new ItemStack(Material.AIR);
+        }
+
+        if (item.getType().equals(Material.AIR)){
+            item = newEmptyItem();
         }
 
         item = item.clone();
 
-        if (item.getType().equals(Material.AIR)) {
-            return;
-        }
-
-        inventory.setItem(4, item);
         result = item;
+        inventory.setItem(4, result);
     }
 
     private void frameworkUpdate(){
-        clearItem(0);
-        clearItem(3);
-        inventory.setItem(0, newRenameItem());
-        inventory.setItem(3, newBannerItem());
+        setupRenameItem(renameText);
+        inventory.setItem(3, newBannerItem(-1, false));
+        inventory.setItem(4, result);
     }
 
     public WrappedBedrockAnvilUI(Player player){
-        this.inventory = Bukkit.createInventory(player, InventoryType.HOPPER, "Anvil");
+        this.inventory = Bukkit.createInventory(player, InventoryType.HOPPER, "§e"+(String)(MEGeyserSupport.getThis().languageMapping.get("Anvil")));
         this.player = player;
         frameworkUpdate();
         player.closeInventory();
         player.openInventory(inventory);
-        wrappedBedrockAnvilUIs.put(inventory, this);
-    }
-
-    private boolean isRenaming(){
-        boolean isTaken = false;
-
-        if (inventory.getItem(0) == null){
-            isTaken = true;
-        }
-
-        if (WrappedBedrockAnvilUI.isRenameItem(inventory.getItem(0))){
-            isTaken = true;
-        }
-
-        return isTaken;
+        wrappedBedrockAnvilUIs.put(player, this);
     }
 
     private void rename(){
         new RenameUI(player, (renameText)->{
-            player.closeInventory();
-            player.sendMessage("Please type the new name of the item in chat");
-            if (renameText.replaceAll(" ", "").isEmpty()) return;
-            if (renameText.contains("§")) return;
-            if (renameText.contains("\n")) return;
-
-            ItemStack renameItem = newRenameItem();
-            ItemMeta renameItemMeta = renameItem.getItemMeta();
-            renameItemMeta.setDisplayName(renameText);
-            renameItem.setItemMeta(renameItemMeta);
-            inventory.setItem(0, renameItem);
-            player.openInventory(inventory);
+            this.renameText = renameText;
+            setupRenameItem(renameText);
+            Bukkit.getScheduler().runTask(MEGeyserSupport.getThis(), ()->player.openInventory(inventory));
+            Bukkit.getScheduler().runTask(MEGeyserSupport.getThis(), this::updateResult);
         });
+        player.sendMessage("§a"+(String)(MEGeyserSupport.getThis().languageMapping.get("AskForRename")));
+        player.closeInventory();
     }
 
     private void updateResult(){
         MinecraftAnvilAPI vanillaAnvil = new MinecraftAnvilAPI(player);
-
         Bukkit.getScheduler().runTaskLater(MEGeyserSupport.getThis(), () -> {
             vanillaAnvil.setItemA(itemA);
             vanillaAnvil.setItemB(itemB);
+            if (!vanillaAnvil.setRename(renameText)){
+                renameText = "";
+                setupRenameItem(renameText);
+            }
         }, 1);
 
-
-        Bukkit.getScheduler().runTaskLater(MEGeyserSupport.getThis(), vanillaAnvil::open, 2);
+        Bukkit.getScheduler().runTaskLater(MEGeyserSupport.getThis(), () -> {
+            vanillaAnvil.setRename(renameText);
+        }, 3);
 
         Bukkit.getScheduler().runTaskLater(MEGeyserSupport.getThis(), () -> {
             setResult(vanillaAnvil.getResultPreview());
+            int lvl = vanillaAnvil.getRepairCost();
+            boolean isTooExpensive = vanillaAnvil.isTooExpensive();
+            inventory.setItem(3, newBannerItem(lvl, isTooExpensive));
             vanillaAnvil.clear();
-            player.openInventory(inventory);
             noClose.remove(vanillaAnvil.getInventory());
-        }, 3);
+        }, 4);
+    }
+
+    public void onRename(){
+        rename();
     }
 
     public void onUpdate(){
-//        if (isRenaming()) rename();
         Bukkit.getScheduler().runTaskLater(MEGeyserSupport.getThis(), () -> {
             ItemStack currentItemA = inventory.getItem(1);
             ItemStack currentItemB = inventory.getItem(2);
@@ -208,40 +193,45 @@ public class WrappedBedrockAnvilUI{
                     || action.equals(InventoryAction.PICKUP_SOME)
                     || action.equals(InventoryAction.COLLECT_TO_CURSOR)
                     || action.equals(InventoryAction.MOVE_TO_OTHER_INVENTORY)
-                    || action.equals(InventoryAction.SWAP_WITH_CURSOR)
-                    || action.equals(InventoryAction.HOTBAR_SWAP)
                 )
         ) return;
-
-        ItemStack currentResult = inventory.getItem(4);
-        if (currentResult == null) currentResult = new ItemStack(Material.AIR);
 
         MinecraftAnvilAPI vanillaAnvil = new MinecraftAnvilAPI(player);
         vanillaAnvil.setItemA(itemA);
         vanillaAnvil.setItemB(itemB);
+        inventory.clear(1);
+        inventory.clear(2);
+        inventory.clear(4);
+        result = newEmptyItem();
 
-        player.closeInventory();
+        inventoryLock = true;
         Bukkit.getScheduler().runTaskLater(MEGeyserSupport.getThis(), ()->{
-            vanillaAnvil.open();
-        }, 1);
-        Bukkit.getScheduler().runTaskLater(MEGeyserSupport.getThis(), ()->{
-            inventory.clear();
-            vanillaAnvil.onResultClick(clickType, action);
+            vanillaAnvil.setRename(renameText);
         }, 2);
         Bukkit.getScheduler().runTaskLater(MEGeyserSupport.getThis(), ()->{
-            frameworkUpdate();
-            player.openInventory(inventory);
+            vanillaAnvil.onResultClick(clickType, action);
         }, 3);
+        Bukkit.getScheduler().runTaskLater(MEGeyserSupport.getThis(), ()->{
+            frameworkUpdate();
+            itemA = vanillaAnvil.getItemA();
+            itemB = vanillaAnvil.getItemB();
+            inventory.setItem(1, itemA);
+            inventory.setItem(2, itemB);
+            setResult(vanillaAnvil.getResultPreview());
+        }, 4);
+        Bukkit.getScheduler().runTaskLater(MEGeyserSupport.getThis(), ()->{
+            inventoryLock = false;
+        }, 5);
 
-//        inventory.setItem(0, renameItem());
-//        inventory.setItem(1, new ItemStack(Material.AIR));
-//        inventory.setItem(2, new ItemStack(Material.AIR));
-//        inventory.setItem(3, bannerItem());
-//        inventory.setItem(4, new ItemStack(Material.AIR));
-//        ItemStack finalResult = result;
-//        Bukkit.getScheduler().runTaskLater(MEGeyserSupport.getThis(), () -> {
-//            player.setItemOnCursor(finalResult);
-//        }, 2);
+    }
+
+    public void restoreItems(){
+        if (inventoryLock){
+            return;
+        }
+        player.getInventory().addItem(itemA);
+        player.getInventory().addItem(itemB);
+        wrappedBedrockAnvilUIs.remove(player);
     }
 
 

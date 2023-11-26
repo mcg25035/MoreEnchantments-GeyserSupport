@@ -1,0 +1,10 @@
+{
+  "WrongAccessDuringRenaming.Inventory": "You can't access inventories while renaming a item",
+  "WrongAccessDuringRenaming.Move": "You can't move while renaming a item",
+  "WrongAccessDuringRenaming.SendCommand": "You can't send commands while renaming a item",
+  "AskForRename": "Please type the new name of the item in chat",
+  "LevelCost": "Level Cost ",
+  "TooExpensive": "Too Expensive",
+  "ClickToRename": "Click to rename",
+  "Anvil": "Anvil"
+}

@@ -8,6 +8,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Sound;
 import org.bukkit.craftbukkit.v1_20_R2.entity.CraftPlayer;
+import org.bukkit.craftbukkit.v1_20_R2.inventory.CraftInventoryAnvil;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryAction;
@@ -18,6 +19,7 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryView;
 import org.bukkit.inventory.ItemStack;
 
+import java.lang.reflect.Field;
 import java.util.*;
 
 public class MinecraftAnvilAPI
@@ -75,20 +77,32 @@ public class MinecraftAnvilAPI
         }
         InventoryClickEvent event = new InventoryClickEvent(view, InventoryType.SlotType.RESULT, 2, clickType, action);
         Bukkit.getPluginManager().callEvent(event);
-        player.setItemOnCursor(event.getCursor());
-//        player.
-//        player.getLocation().getWorld().playSound(player.getLocation(), Sound.BLOCK_ANVIL_USE, 1.0F, (float)(1.035 - Math.random() * 0.15));
+//        Bukkit.getScheduler().runTaskLater(MEGeyserSupport.getThis(),()->{
+//            player.setItemOnCursor(event.getCursor());
+//        },1);
+    }
 
+    public boolean setRename(String rename){
+        if (rename.contains("§")) rename = rename.replace("§", "");
+        if (rename.isBlank()) return false;
+        if (rename.isEmpty()) return false;
+        try {
+            CraftInventoryAnvil anvil = (CraftInventoryAnvil) inventory;
+            Field field = CraftInventoryAnvil.class.getDeclaredField("container");
+            field.setAccessible(true);
+            AnvilMenu container = (AnvilMenu) field.get(anvil);
+            container.setItemName(rename);
+            return true;
+        }
+        catch (Exception e){
+            return false;
+        }
     }
 
     public void open(){
         opened = true;
         playersWithAnvilOpen.add(player);
         opening.add(this);
-        for (MinecraftAnvilAPI i : opening){
-            System.out.println("opening");
-            System.out.println(i.player.getName());
-        }
         player.openInventory(view);
 
     }
@@ -108,4 +122,21 @@ public class MinecraftAnvilAPI
     public void clear(){
         inventory.clear();
     }
+
+    public int getRepairCost(){
+        return inventory.getRepairCost();
+    }
+
+    public boolean isTooExpensive(){
+        return inventory.getRepairCost() > inventory.getMaximumRepairCost();
+    }
+
+    public ItemStack getItemA(){
+        return inventory.getItem(0);
+    }
+
+    public ItemStack getItemB(){
+        return inventory.getItem(1);
+    }
+
 }

@@ -1,72 +1,101 @@
 package org.MEGeyserSupport;
 
 import org.bukkit.Bukkit;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.*;
-import org.bukkit.event.player.AsyncPlayerChatEvent;
+import org.bukkit.event.player.*;
 import org.bukkit.inventory.AnvilInventory;
+
+import java.time.Instant;
+import java.util.List;
 
 public class Events implements Listener {
 
     @EventHandler
-    void PrepareAnvilEvent(PrepareAnvilEvent e){
-        System.out.println("triggered");
-
-    }
-
-    @EventHandler
     void InventoryClickEvent(InventoryClickEvent e){
-        if (MinecraftAnvilAPI.isAnvilOpening(e.getInventory())) return;
-        WrappedBedrockAnvilUI wrappedBedrockAnvilUI = WrappedBedrockAnvilUI.getWrappedBedrockAnvilUI(e.getInventory());
+        WrappedBedrockAnvilUI wrappedBedrockAnvilUI = WrappedBedrockAnvilUI.getWrappedBedrockAnvilUI((Player) e.getWhoClicked());
+
         if (wrappedBedrockAnvilUI == null) return;
-        if (e.getSlot() == 4 && e.getSlotType().equals(InventoryType.SlotType.CONTAINER)){
-//            e.getWhoClicked().setItemOnCursor(new ItemStack(Material.AIR));
-//            e.setCurrentItem(new ItemStack(Material.AIR));
+        if (e.getClickedInventory()== null) return;
+
+        if (e.getClickedInventory().getType().equals(InventoryType.HOPPER) && wrappedBedrockAnvilUI.inventoryLock){
             e.setResult(Event.Result.DENY);
-//            e.setCancelled(true);
-//            System.out.println("cancelled");
+            return;
+        }
+
+        if (e.getClickedInventory().getType().equals(InventoryType.HOPPER)){
+            if (wrappedBedrockAnvilUI.lastUpdate != null && wrappedBedrockAnvilUI.lastUpdate.plusMillis(100).isAfter(Instant.now())){
+                e.setResult(Event.Result.DENY);
+                return;
+            }
+
+            wrappedBedrockAnvilUI.lastUpdate = Instant.now();
+        }
+
+
+        boolean isItemInWrappedAnvil = e.getClickedInventory().getType().equals(InventoryType.HOPPER);
+        boolean inItemSlot = List.of(1,2).contains(e.getSlot());
+        if (isItemInWrappedAnvil && !inItemSlot) e.setResult(Event.Result.DENY);
+
+        if (e.getSlot() == 4 && isItemInWrappedAnvil){
+            e.setResult(Event.Result.DENY);
+            if (e.getCurrentItem().getType().equals(Material.BARRIER)){
+                return;
+            }
+
             Bukkit.getScheduler().runTaskLater(MEGeyserSupport.getThis(), () -> {
                 wrappedBedrockAnvilUI.onResultTake(e.getClick(), e.getAction());
             }, 1);
-//            MinecraftAnvilAPI anvil = new MinecraftAnvilAPI((Player) e.getWhoClicked());
-//            Bukkit.getScheduler().runTaskLater(MEGeyserSupport.getThis(), anvil::open, 10);
             return;
         }
+
+        if (e.getSlot() == 3 && isItemInWrappedAnvil){
+            return;
+        }
+
+        if (e.getSlot() == 0 && isItemInWrappedAnvil){
+            wrappedBedrockAnvilUI.onRename();
+        }
+
         wrappedBedrockAnvilUI.onUpdate();
     }
 
     @EventHandler
     void InventoryOpenEvent(InventoryOpenEvent e){
-        System.out.println("playersWithAnvilOpen");
-        System.out.println(e.getInventory().getType());
-        if (!(e.getInventory().getType().equals(InventoryType.ANVIL))) return;
-//        if (WrappedBedrockAnvilUI.noClose.contains(e.getInventory())) return;
-        if (MinecraftAnvilAPI.playersWithAnvilOpen.contains(e.getPlayer())) return;
-        for (Player i : MinecraftAnvilAPI.playersWithAnvilOpen){
-            System.out.println("playersWithAnvilOpen");
-            System.out.println(i.getName());
+        if (WrappedBedrockAnvilUI.RenameUI.players.containsKey(e.getPlayer().getUniqueId())){
+            e.setCancelled(true);
+            Bukkit.getScheduler().runTaskLater(MEGeyserSupport.getThis(), () -> e.getPlayer().closeInventory(), 1);
+            e.getPlayer().sendMessage("§c"+(String)(MEGeyserSupport.getThis().languageMapping.get("WrongAccessDuringRenaming.Inventory")));
+            e.getPlayer().sendMessage("§a"+(String)(MEGeyserSupport.getThis().languageMapping.get("AskForRename")));
+            return;
         }
+
+
+        if (!(e.getInventory().getType().equals(InventoryType.ANVIL))) return;
+        if (MinecraftAnvilAPI.playersWithAnvilOpen.contains(e.getPlayer())) return;
         Bukkit.getScheduler().runTaskLater(MEGeyserSupport.getThis(), () -> {
-            WrappedBedrockAnvilUI wrappedBedrockAnvilUI = new WrappedBedrockAnvilUI((Player)(e.getPlayer()));
+            new WrappedBedrockAnvilUI((Player)(e.getPlayer()));
         }, 1);
     }
 
 
     @EventHandler
     void InventoryCloseEvent(InventoryCloseEvent e){
-        System.out.println("playersWithAnvilClose");
-        System.out.println(e.getInventory().getType());
+        WrappedBedrockAnvilUI wrappedBedrockAnvilUI = WrappedBedrockAnvilUI.getWrappedBedrockAnvilUI((Player) e.getPlayer());
+        if (wrappedBedrockAnvilUI != null){
+            if (!WrappedBedrockAnvilUI.RenameUI.players.containsKey(e.getPlayer().getUniqueId())){
+                wrappedBedrockAnvilUI.restoreItems();
+            }
+        }
+
         if (!(e.getInventory().getType().equals(InventoryType.ANVIL))) return;
         if (!MinecraftAnvilAPI.playersWithAnvilOpen.contains(e.getPlayer())) return;
         for (MinecraftAnvilAPI i : MinecraftAnvilAPI.opening) {
-            System.out.println("playersWithAnvilClose");
-            System.out.println(i.getPlayer().getName());
-            if (!i.getPlayer().equals(e.getPlayer())) {
-                continue;
-            }
+            if (!i.getPlayer().equals(e.getPlayer())) continue;
             i.onUIClosed();
         }
     }
@@ -80,6 +109,37 @@ public class Events implements Listener {
         e.setCancelled(true);
     }
 
+    @EventHandler
+    void PlayerMoveEvent(PlayerMoveEvent e){
+        if (!WrappedBedrockAnvilUI.RenameUI.players.containsKey(e.getPlayer().getUniqueId())){
+            return;
+        }
+        e.setCancelled(true);
+        e.getPlayer().sendMessage("§c"+(String)(MEGeyserSupport.getThis().languageMapping.get("WrongAccessDuringRenaming.Move")));
+        e.getPlayer().sendMessage("§a"+(String)(MEGeyserSupport.getThis().languageMapping.get("AskForRename")));
+
+    }
+
+    @EventHandler
+    void PlayerCommandPreprocessEvent(PlayerCommandPreprocessEvent e){
+        if (!WrappedBedrockAnvilUI.RenameUI.players.containsKey(e.getPlayer().getUniqueId())){
+            return;
+        }
+        e.setCancelled(true);
+        e.getPlayer().sendMessage("§c"+(String)(MEGeyserSupport.getThis().languageMapping.get("WrongAccessDuringRenaming.SendCommand")));
+        e.getPlayer().sendMessage("§a"+(String)(MEGeyserSupport.getThis().languageMapping.get("AskForRename")));
+    }
+
+    @EventHandler
+    void PlayerQuitEvent(PlayerQuitEvent e){
+        WrappedBedrockAnvilUI wrappedBedrockAnvilUI = WrappedBedrockAnvilUI.getWrappedBedrockAnvilUI(e.getPlayer());
+        if (wrappedBedrockAnvilUI == null) return;
+        wrappedBedrockAnvilUI.restoreItems();
+        if (WrappedBedrockAnvilUI.RenameUI.players.containsKey(e.getPlayer().getUniqueId())){
+            WrappedBedrockAnvilUI.RenameUI.players.remove(e.getPlayer().getUniqueId());
+        }
+
+    }
 
 }
 

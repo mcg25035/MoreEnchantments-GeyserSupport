@@ -1,0 +1,10 @@
+{
+  "WrongAccessDuringRenaming.Inventory": "您無法在命名時開啟任何容器",
+  "WrongAccessDuringRenaming.Move": "您無法在命名時移動",
+  "WrongAccessDuringRenaming.SendCommand": "您無法在命名時發送指令",
+  "AskForRename": "請輸入物品名稱",
+  "LevelCost": "經驗消耗 ",
+  "TooExpensive": "太貴了",
+  "ClickToRename": "點擊以命名",
+  "Anvil": "鐵砧"
+}
