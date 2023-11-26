@@ -6,6 +6,7 @@ import net.minecraft.world.inventory.AnvilMenu;
 import net.minecraft.world.inventory.ContainerLevelAccess;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
+import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.craftbukkit.v1_20_R2.entity.CraftPlayer;
 import org.bukkit.craftbukkit.v1_20_R2.inventory.CraftInventoryAnvil;
@@ -72,14 +73,20 @@ public class MinecraftAnvilAPI
     }
 
     public void onResultClick(ClickType clickType, InventoryAction action){
-        if (player.getGameMode().equals(GameMode.SURVIVAL)){
-            player.setLevel(player.getLevel() - inventory.getRepairCost());
+        int playerLevel = player.getLevel();
+        if (player.getGameMode().equals(GameMode.SURVIVAL) && !isTooExpensive()){
+            playerLevel -= getRepairCost();
         }
         InventoryClickEvent event = new InventoryClickEvent(view, InventoryType.SlotType.RESULT, 2, clickType, action);
         Bukkit.getPluginManager().callEvent(event);
-//        Bukkit.getScheduler().runTaskLater(MEGeyserSupport.getThis(),()->{
-//            player.setItemOnCursor(event.getCursor());
-//        },1);
+        int finalPlayerLevel = playerLevel;
+        Bukkit.getScheduler().runTaskLater(MEGeyserSupport.getThis(),()->{
+            player.getInventory().addItem(player.getItemOnCursor());
+            player.setItemOnCursor(new ItemStack(Material.AIR));
+            if (finalPlayerLevel >= 0){
+                player.setLevel(finalPlayerLevel);
+            }
+        },1);
     }
 
     public boolean setRename(String rename){

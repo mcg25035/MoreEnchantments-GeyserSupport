@@ -221,7 +221,7 @@ public class WrappedBedrockAnvilUI{
         }, 4);
         Bukkit.getScheduler().runTaskLater(MEGeyserSupport.getThis(), ()->{
             inventoryLock = false;
-        }, 5);
+        }, 7);
 
     }
 
