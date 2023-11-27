@@ -14,9 +14,13 @@ import java.time.Instant;
 import java.util.List;
 
 public class Events implements Listener {
-
+    MEGeyserSupport main = MEGeyserSupport.getThis();
     @EventHandler
     void InventoryClickEvent(InventoryClickEvent e){
+        if (!main.isBedrockPlayerWrapped((Player)(e.getWhoClicked()))){
+            return;
+        }
+        
         WrappedBedrockAnvilUI wrappedBedrockAnvilUI = WrappedBedrockAnvilUI.getWrappedBedrockAnvilUI((Player) e.getWhoClicked());
 
         if (wrappedBedrockAnvilUI == null) return;
@@ -66,6 +70,10 @@ public class Events implements Listener {
 
     @EventHandler
     void InventoryOpenEvent(InventoryOpenEvent e){
+        if (!main.isBedrockPlayerWrapped((Player)(e.getPlayer()))){
+            return;
+        }
+
         if (WrappedBedrockAnvilUI.RenameUI.players.containsKey(e.getPlayer().getUniqueId())){
             e.setCancelled(true);
             Bukkit.getScheduler().runTaskLater(MEGeyserSupport.getThis(), () -> e.getPlayer().closeInventory(), 1);
@@ -85,6 +93,10 @@ public class Events implements Listener {
 
     @EventHandler
     void InventoryCloseEvent(InventoryCloseEvent e){
+        if (!main.isBedrockPlayerWrapped((Player)(e.getPlayer()))){
+            return;
+        }
+
         WrappedBedrockAnvilUI wrappedBedrockAnvilUI = WrappedBedrockAnvilUI.getWrappedBedrockAnvilUI((Player) e.getPlayer());
         if (wrappedBedrockAnvilUI != null){
             if (!WrappedBedrockAnvilUI.RenameUI.players.containsKey(e.getPlayer().getUniqueId())){
@@ -102,6 +114,10 @@ public class Events implements Listener {
 
     @EventHandler
     void AsyncPlayerChatEvent(AsyncPlayerChatEvent e){
+        if (!main.isBedrockPlayerWrapped(e.getPlayer())){
+            return;
+        }
+
         Player player = e.getPlayer();
         if (!WrappedBedrockAnvilUI.RenameUI.players.containsKey(player.getUniqueId())) return;
         WrappedBedrockAnvilUI.RenameUI playerRenameUI = WrappedBedrockAnvilUI.RenameUI.players.get(player.getUniqueId());
@@ -111,6 +127,10 @@ public class Events implements Listener {
 
     @EventHandler
     void PlayerMoveEvent(PlayerMoveEvent e){
+        if (!main.isBedrockPlayerWrapped(e.getPlayer())){
+            return;
+        }
+
         if (!WrappedBedrockAnvilUI.RenameUI.players.containsKey(e.getPlayer().getUniqueId())){
             return;
         }
@@ -122,6 +142,10 @@ public class Events implements Listener {
 
     @EventHandler
     void PlayerCommandPreprocessEvent(PlayerCommandPreprocessEvent e){
+        if (!main.isBedrockPlayerWrapped(e.getPlayer())){
+            return;
+        }
+
         if (!WrappedBedrockAnvilUI.RenameUI.players.containsKey(e.getPlayer().getUniqueId())){
             return;
         }
@@ -132,6 +156,10 @@ public class Events implements Listener {
 
     @EventHandler
     void PlayerQuitEvent(PlayerQuitEvent e){
+        if (!main.isBedrockPlayerWrapped(e.getPlayer())){
+            return;
+        }
+        
         WrappedBedrockAnvilUI wrappedBedrockAnvilUI = WrappedBedrockAnvilUI.getWrappedBedrockAnvilUI(e.getPlayer());
         if (wrappedBedrockAnvilUI == null) return;
         wrappedBedrockAnvilUI.restoreItems();

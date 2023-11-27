@@ -2,4 +2,5 @@ name: MoreEnchantments-GeyserSupport
 version: '${project.version}'
 main: org.MEGeyserSupport.MEGeyserSupport
 api-version: '1.20'
-#depend: ["MoreEnchantments", "PlayerNPC", "Geyser-Spigot"]
+depend: ["MoreEnchantments"]
+softdepend: ["Geyser-Spigot", "Floodgate"]

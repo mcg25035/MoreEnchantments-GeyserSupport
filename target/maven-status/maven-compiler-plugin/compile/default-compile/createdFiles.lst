@@ -1,4 +1,6 @@
 org/MEGeyserSupport/MinecraftAnvilAPI.class
 org/MEGeyserSupport/WrappedBedrockAnvilUI.class
 org/MEGeyserSupport/WrappedBedrockAnvilUI$RenameUI.class
+org/MEGeyserSupport/Events.class
 org/MEGeyserSupport/utils/ItemStackUtil.class
+org/MEGeyserSupport/MEGeyserSupport.class

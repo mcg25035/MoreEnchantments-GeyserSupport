@@ -118,6 +118,12 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
+      <groupId>org.geysermc.floodgate</groupId>
+      <artifactId>api</artifactId>
+      <version>2.2.2-SNAPSHOT</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
       <groupId>org</groupId>
       <artifactId>ItemUtils</artifactId>
       <version>2.4-SNAPSHOT</version>
@@ -126,9 +132,9 @@
     <dependency>
       <groupId>org.MoreEnchantments</groupId>
       <artifactId>MoreEnchantments</artifactId>
-      <version>1.1-SNAPSHOT</version>
+      <version>1.2-SNAPSHOT</version>
       <scope>system</scope>
-      <systemPath>/home/codingbear/IdeaProjects/MoreEnchantments/target/MoreEnchantments-1.1-SNAPSHOT.jar</systemPath>
+      <systemPath>/home/codingbear/IdeaProjects/MoreEnchantments/target/MoreEnchantments-1.2-SNAPSHOT.jar</systemPath>
     </dependency>
   </dependencies>
   <properties>

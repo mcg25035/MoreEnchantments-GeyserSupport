@@ -37,6 +37,7 @@ import org.bukkit.inventory.meta.EnchantmentStorageMeta;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.geysermc.api.Geyser;
+import org.geysermc.floodgate.api.FloodgateApi;
 import org.geysermc.geyser.api.GeyserApi;
 import org.moreenchantments.MoreEnchantments;
 import org.moreenchantments.books.MoneyMendingBook;
@@ -46,6 +47,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Method;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
@@ -56,6 +58,8 @@ public final class MEGeyserSupport extends JavaPlugin {
     public File pluginDir = getDataFolder();
     public HashMap<String, Object> config = new HashMap<>();
     public HashMap<String, String> languageMapping = new HashMap<>();
+    public String prefix = "";
+    public Method isBedrockPlayer;
     public void checkPluginFile() throws IOException {
 
         if (!pluginDir.exists()){
@@ -82,8 +86,29 @@ public final class MEGeyserSupport extends JavaPlugin {
     public static MEGeyserSupport getThis(){
         return (MEGeyserSupport) (Bukkit.getPluginManager().getPlugin("MoreEnchantments-GeyserSupport"));
     }
+
+    public static boolean isBedrockPlayerByGeyser(Player player){
+        return Geyser.api().isBedrockPlayer(player.getUniqueId());
+    }
+
+    public static boolean isBedrockPlayerByFloodgate(Player player){
+        return FloodgateApi.getInstance().isFloodgatePlayer(player.getUniqueId());
+    }
+
+    public static boolean isBedrockPlayerByPrefix(Player player){
+        return player.getName().startsWith(getThis().prefix);
+    }
+
+    public boolean isBedrockPlayerWrapped(Player player){
+        try{
+            return (boolean) isBedrockPlayer.invoke(this, player);
+        }
+        catch (Exception ignored){}
+        return false;
+    }
+
     @Override
-    public void onEnable() {
+    public void onEnable(){
         try{
             checkPluginFile();
         }
@@ -108,6 +133,44 @@ public final class MEGeyserSupport extends JavaPlugin {
                 languageMapping.put(key, value);
             }
         } catch (Exception ignored) {}
+
+        if (config.get("getPlayerTypeBy") == null){
+            throw new RuntimeException("Invalid config.yml");
+        }
+        else if (config.get("getPlayerTypeBy").equals(0)){
+            if (Bukkit.getPluginManager().getPlugin("Geyser-Spigot") == null){
+                throw new RuntimeException("Geyser-Spigot not found");
+            }
+            try {
+                isBedrockPlayer = this.getClass().getDeclaredMethod("isBedrockPlayerByGeyser", Player.class);
+            }
+            catch (Exception ignored){}
+        }
+        else if (config.get("getPlayerTypeBy").equals(1)){
+            if (Bukkit.getPluginManager().getPlugin("floodgate") == null){
+                throw new RuntimeException("floodgate not found");
+            }
+            try {
+                isBedrockPlayer = this.getClass().getDeclaredMethod("isBedrockPlayerByFloodgate", Player.class);
+            }
+            catch (Exception ignored){}
+        }
+        else if (config.get("getPlayerTypeBy").equals(2)){
+            if (config.get("prefix") == null){
+                throw new RuntimeException("Invalid config.yml");
+            }
+            if (config.get("prefix").equals("")){
+                throw new RuntimeException("Invalid config.yml");
+            }
+            prefix = (String) config.get("prefix");
+            try {
+                isBedrockPlayer = this.getClass().getDeclaredMethod("isBedrockPlayerByPrefix", Player.class);
+            }
+            catch (Exception ignored){}
+        }
+        else{
+            throw new RuntimeException("Invalid config.yml");
+        }
 
         Bukkit.getServer().getPluginManager().registerEvents(new Events(), this);
     }
