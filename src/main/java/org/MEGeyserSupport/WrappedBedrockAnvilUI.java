@@ -229,8 +229,14 @@ public class WrappedBedrockAnvilUI{
         if (inventoryLock){
             return;
         }
-        player.getInventory().addItem(itemA);
-        player.getInventory().addItem(itemB);
+        HashMap<Integer, ItemStack> leftItems = player.getInventory().addItem(itemA);
+        for (ItemStack item : leftItems.values()){
+            player.getWorld().dropItem(player.getLocation(), item);
+        }
+        leftItems = player.getInventory().addItem(itemB);
+        for (ItemStack item : leftItems.values()){
+            player.getWorld().dropItem(player.getLocation(), item);
+        }
         wrappedBedrockAnvilUIs.remove(player);
     }
 

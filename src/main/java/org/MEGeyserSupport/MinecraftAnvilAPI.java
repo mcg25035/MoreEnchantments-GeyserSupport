@@ -81,7 +81,10 @@ public class MinecraftAnvilAPI
         Bukkit.getPluginManager().callEvent(event);
         int finalPlayerLevel = playerLevel;
         Bukkit.getScheduler().runTaskLater(MEGeyserSupport.getThis(),()->{
-            player.getInventory().addItem(player.getItemOnCursor());
+            HashMap<Integer, ItemStack> leftItems = player.getInventory().addItem(player.getItemOnCursor());
+            for (ItemStack item : leftItems.values()){
+                player.getWorld().dropItem(player.getLocation(), item);
+            }
             player.setItemOnCursor(new ItemStack(Material.AIR));
             if (finalPlayerLevel >= 0){
                 player.setLevel(finalPlayerLevel);
